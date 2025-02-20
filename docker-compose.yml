@@ -1,0 +1,40 @@
+services:
+  # isyouiz_tiktok_scraper:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: IzYOuIz_tiktok_scraper
+  #   shm_size: "3g" 
+  #   ports:
+  #     - "8000:8000"
+  #     - "5900:5900"
+  #     - "4444:4444"
+
+  # cobalt-api:
+  #   image: ghcr.io/imputnet/cobalt:10  # Pull the latest Cobalt API image
+
+  #   init: true
+  #   read_only: true
+  #   restart: unless-stopped
+  #   container_name: cobalt-api
+
+  #   ports:
+  #     - "9000:9000/tcp"  # Expose port 9000
+
+  #   environment:
+  #     API_URL: "http://0.0.0.0:9000/"  # Allow access from other services
+  #     DURATION_LIMIT: "43200"
+
+  #   labels:
+  #     - com.centurylinklabs.watchtower.scope=cobalt
+
+  #   # Uncomment only if using the COOKIE_PATH variable
+  #   # volumes:
+  #   #   - ./cookies.json:/cookies.json
+
+  watchtower:
+    image: ghcr.io/containrrr/watchtower  # Pull Watchtower for automated updates
+    restart: unless-stopped
+    command: --cleanup --scope cobalt --interval 900 --include-restarting
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Required for Watchtower to manage containers

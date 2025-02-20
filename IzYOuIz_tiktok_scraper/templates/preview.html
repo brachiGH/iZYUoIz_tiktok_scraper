@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Video Scraper</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #03dac6;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+
+        select, input {
+            width: 95%;
+            padding: 12px;
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #1e1e1e;
+            color: #fff;
+            outline: none;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #03dac6;
+            color: #121212;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #00c4b4;
+        }
+
+        pre {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 5px;
+            width: 95%;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Trending Video Scraper</h1>
+        
+        <label for="searchType">Search Type:</label>
+        <select id="searchType" onchange="toggleSearchInput()" style="width: 100%;">
+            <option value="topic">Topic</option>
+            <option value="hashtag">Hashtag</option>
+            <option value="userid">User ID</option>
+            <option value="trending">Trending</option>
+        </select>
+
+        <div id="searchInputContainer"></div>
+
+        <label for="maxVideos">Max Videos:</label>
+        <input type="number" id="maxVideos" value="10" min="1" max="100">
+
+        <button onclick="startScraping()">Start Scraping</button>
+
+        <h3>cURL Preview:</h3>
+        <pre id="curlPreview"></pre>
+
+        <h3>Status:</h3>
+        <pre id="status">Waiting...</pre>
+
+        <h3>Response:</h3>
+        <pre id="response">No data yet.</pre>
+    </div>
+
+    <script>
+        function toggleSearchInput() {
+            const searchType = document.getElementById('searchType').value;
+            const container = document.getElementById('searchInputContainer');
+
+            if (searchType === 'hashtag' || searchType === 'userid') {
+                container.innerHTML = '<label for="searchQuery">Search Query:</label><input type="text" id="searchQuery" placeholder="Enter search query">';
+            } else if (searchType === 'topic') {
+                container.innerHTML = `
+                    <label for="searchQuery">Search Query:</label>
+                    <select id="searchQuery" style="width: 100%;">
+                        <option value="0">Hot Videos</option>
+                        <option value="1">Apparel & Accessories</option>
+                        <option value="2">Baby, Kids & Maternity</option>
+                        <option value="3">Beauty & Personal Care</option>
+                        <option value="4">Business Services</option>
+                        <option value="5">Education</option>
+                        <option value="6">Financial Services</option>
+                        <option value="7">Food & Beverage</option>
+                        <option value="8">Games</option>
+                        <option value="9">Health</option>
+                        <option value="10">Home Improvement</option>
+                        <option value="11">Household Products</option>
+                        <option value="12">Life Services</option>
+                        <option value="13">News & Entertainment</option>
+                        <option value="14">Pets</option>
+                        <option value="15">Sports & Outdoor</option>
+                        <option value="16">Tech & Electronics</option>
+                        <option value="17">Travel</option>
+                        <option value="18">Vehicle & Transportation</option>
+                    </select>`;
+            } else {
+                container.innerHTML = '';
+            }
+
+            updateCurlPreview();
+        }
+
+        function updateCurlPreview() {
+            const searchType = document.getElementById('searchType').value;
+            const searchQuery = document.getElementById('searchQuery')?.value || '';
+            const maxVideos = document.getElementById('maxVideos').value;
+            const curlCommand = `curl -X POST "${window.location.protocol}//${window.location.hostname}/scrape-and-download/" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "search_type": "${searchType}",
+  "search_query": "${searchQuery}",
+  "max_videos": ${maxVideos}
+}'`;
+            document.getElementById('curlPreview').innerText = curlCommand;
+        }
+
+        document.getElementById('searchType').addEventListener('change', updateCurlPreview);
+        document.getElementById('maxVideos').addEventListener('input', updateCurlPreview);
+
+        async function startScraping() {
+            document.getElementById('status').innerText = "Sending request...";
+            const searchType = document.getElementById('searchType').value;
+            const searchQuery = document.getElementById('searchQuery')?.value || '';
+            const maxVideos = document.getElementById('maxVideos').value;
+            try {
+                let response = await fetch("/scrape-and-download/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        "search_type": searchType,
+                        "search_query": searchQuery,
+                        "max_videos": maxVideos
+                    })
+                });
+                let data = await response.json();
+                if (data.id) {
+                    document.getElementById('status').innerText = "Request queued. Checking status...";
+                    checkStatus(data.id);
+                } else {
+                    document.getElementById('status').innerText = "Error: No ID received.";
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = "Request failed.";
+            }
+        }
+
+        async function checkStatus(id) {
+            let completed = false;
+            while (!completed) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                try {
+                    let response = await fetch(`/get-status/?id=${id}`);
+                    let data = await response.json();
+                    document.getElementById('status').innerText = "Checking...";
+                    if (data.status === "completed") {
+                        document.getElementById('status').innerText = "Completed!";
+                        document.getElementById('response').innerText = JSON.stringify(data, null, 2);
+                        completed = true;
+                    }
+                } catch (error) {
+                    document.getElementById('status').innerText = "Error checking status.";
+                }
+            }
+        }
+
+        // Initialize the interface on page load
+        toggleSearchInput();
+    </script>
+</body>
+</html>
